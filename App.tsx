@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Condo, City } from './types';
+
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Condo, City, MeatSuitDesign } from './types';
 import CondoCard from './components/CondoCard';
 import InteractiveModal from './components/InteractiveModal';
 import { StarField } from './components/StarField';
@@ -7,6 +8,7 @@ import { GoogleGenAI, Modality } from '@google/genai';
 import TeleporterMap from './components/TeleporterMap';
 import { TeleporterIcon } from './components/TeleporterIcon';
 import PaymentForm from './components/PaymentForm';
+import MeatSuitDesigner from './components/MeatSuitDesigner';
 
 const initialCondos: Condo[] = [
   {
@@ -51,7 +53,11 @@ const App: React.FC = () => {
   const [view, setView] = useState<'condos' | 'map'>('condos');
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [paymentSubmitted, setPaymentSubmitted] = useState(false);
+  const [designingMeatSuit, setDesigningMeatSuit] = useState(false);
+  const [meatSuitDesigned, setMeatSuitDesigned] = useState(false);
+  const [meatSuitDesign, setMeatSuitDesign] = useState<MeatSuitDesign | null>(null);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const paymentSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const targetDate = new Date('2026-01-01T00:00:00').getTime();
@@ -76,9 +82,27 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (selectedForPurchase && selectedCity && !meatSuitDesigned && !paymentSubmitted) {
+        setDesigningMeatSuit(true);
+    }
+  }, [selectedForPurchase, selectedCity, meatSuitDesigned, paymentSubmitted]);
+
+  useEffect(() => {
+    // Scroll to payment form or confirmation when they appear
+    if ((selectedForPurchase && selectedCity && meatSuitDesigned && !paymentSubmitted) || paymentSubmitted) {
+        paymentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedForPurchase, selectedCity, meatSuitDesigned, paymentSubmitted]);
+
+
   const handleSelectCondo = (condo: Condo) => {
     setSelectedCondo(condo);
     setSelectedForPurchase(condo);
+    setPaymentSubmitted(false);
+    setDesigningMeatSuit(false);
+    setMeatSuitDesigned(false);
+    setMeatSuitDesign(null);
   };
 
   const handleGenerateImage = async (condo: Condo) => {
@@ -127,6 +151,13 @@ const App: React.FC = () => {
     setPaymentSubmitted(true);
   };
 
+  const handleFinalizeDesign = (design: MeatSuitDesign) => {
+    console.log('Finalized Meat Suit Design:', design);
+    setMeatSuitDesign(design);
+    setMeatSuitDesigned(true);
+    setDesigningMeatSuit(false);
+  };
+
   const handleCloseModal = () => {
     setSelectedCondo(null);
     setIsGenerating(false);
@@ -135,6 +166,10 @@ const App: React.FC = () => {
   const handleCitySelect = useCallback((city: City) => {
     setSelectedCity(city);
     setView('condos');
+    setPaymentSubmitted(false);
+    setDesigningMeatSuit(false);
+    setMeatSuitDesigned(false);
+    setMeatSuitDesign(null);
   }, []);
 
   const handleBackFromMap = useCallback(() => {
@@ -143,6 +178,10 @@ const App: React.FC = () => {
 
   if (view === 'map') {
     return <TeleporterMap onBack={handleBackFromMap} onCitySelect={handleCitySelect} />;
+  }
+
+  if (designingMeatSuit) {
+    return <MeatSuitDesigner onFinalize={handleFinalizeDesign} />;
   }
 
   return (
@@ -219,17 +258,21 @@ const App: React.FC = () => {
         </footer>
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 pb-16">
-        {!paymentSubmitted ? (
-           <PaymentForm 
-             condo={selectedForPurchase} 
-             city={selectedCity}
-             onSubmit={handlePaymentSubmit}
-           />
-         ) : (
-          <div className="text-center max-w-4xl mx-auto p-8 bg-green-900/40 border border-green-500 rounded-lg card-glow">
-            <p className="text-2xl font-orbitron text-green-300 text-glow">Payment received!</p>
-            <p className="mt-2 text-gray-300">Before the Consciousness Transfer Date, you will be provided detailed instructions on the process!</p>
+      <div ref={paymentSectionRef} className="relative z-10 container mx-auto px-4 pb-16">
+        {selectedForPurchase && selectedCity && meatSuitDesigned && !paymentSubmitted && meatSuitDesign && (
+          <PaymentForm 
+            condo={selectedForPurchase} 
+            city={selectedCity}
+            meatSuit={meatSuitDesign}
+            onSubmit={handlePaymentSubmit}
+          />
+        )}
+        
+        {paymentSubmitted && (
+          <div className="text-center max-w-4xl mx-auto p-8 bg-purple-900/40 border border-purple-500 rounded-lg card-glow">
+            <h2 className="text-2xl font-orbitron text-purple-300 text-glow">Transaction Confirmed!</h2>
+            <p className="mt-4 text-lg text-gray-300">Your reservation and bespoke meat suit design have been registered. Fabrication will commence on Comet 3I/ATLAS, ready for your arrival.</p>
+            <p className="mt-2 text-gray-400">Further instructions regarding the consciousness transfer will be sent to your neuro-link shortly. Welcome to your new existence.</p>
           </div>
         )}
       </div>

@@ -1,5 +1,4 @@
 
-
 export interface Condo {
   id: number;
   name: string;
@@ -13,4 +12,11 @@ export interface City {
   name: string;
   lat: number;
   lng: number;
+}
+
+export interface MeatSuitDesign {
+  baseModel: string;
+  skin: string;
+  eyes: string;
+  hair: string;
 }
